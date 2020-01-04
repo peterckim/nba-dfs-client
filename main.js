@@ -1,98 +1,47 @@
 window.onload = function() {
   start();
-  //   fetch("http://localhost:5000/players/337")
-  //     .then(res => res.json())
-  //     .then(data => {
-  //       var trae = new Player({
-  //         id: data.id,
-  //         name: data.name,
-  //         position: data.position,
-  //         games: data.games
-  //       });
-
-  //
-
-  //       var dataPts2 = trae.getGamesAgainst("BOS").map(el => {
-  //         return {
-  //           label: parseDate(new Date(el.date)),
-  //           y: calculateFanduelPoints(el)
-  //         };
-  //       });
-
-  //       var dataPts3 = trae.getGames().map(el => {
-  //         return {
-  //           label: parseDate(new Date(el.date)),
-  //           y: calculateValue(el)
-  //         };
-  //       });
-
-  //       var chart1 = new CanvasJS.Chart("chartContainer", {
-  //         title: {
-  //           text: `${trae.getName()} Past 10 Games`
-  //         },
-  //         data: [
-  //           {
-  //             type: "line",
-  //             name: "actual",
-  //             showInLegend: true,
-  //             dataPoints: dataPts
-  //           }
-  //         ]
-  //       });
-  //       var chart2 = new CanvasJS.Chart("chartContainer1", {
-  //         title: {
-  //           text: `${trae.getName()} vs Los Angeles Lakers`
-  //         },
-  //         data: [
-  //           {
-  //             // Change type to "doughnut", "line", "splineArea", etc.
-  //             type: "line",
-  //             dataPoints: dataPts2
-  //           }
-  //         ]
-  //       });
-
-  //       var chart3 = new CanvasJS.Chart("chartContainer2", {
-  //         title: {
-  //           text: `${trae.getName()} Value`
-  //         },
-  //         data: [
-  //           {
-  //             // Change type to "doughnut", "line", "splineArea", etc.
-  //             type: "line",
-  //             dataPoints: dataPts3
-  //           }
-  //         ]
-  //       });
-
-  //       chart1.render();
-  //       chart2.render();
-  //       chart3.render();
-  //     });
-
-  //
-
-  //   fetch("http://localhost:5000/players")
-  //     .then(res => res.json())
-  //     .then(data => {
-  //       data.players.forEach(
-  //         el =>
-  //           new Player({
-  //             id: el.id,
-  //             name: el.name,
-  //             position: el.position
-  //           })
-  //       );
-
-  //       const HTMLel = document.querySelector(".players-list");
-  //       Player.getAll().forEach(el => {
-  //         HTMLel.innerHTML += `<li>${el.getName()}</li>`;
-  //       });
-  //     });
 };
 
 start = () => {
   getData();
+  renderList();
+};
+
+renderList = () => {
+  fetchAllPlayers();
+};
+
+async function fetchAllPlayers() {
+  const playersData = await fetch("http://localhost:5000/players");
+
+  parseAllPlayerData(playersData);
+}
+
+async function parseAllPlayerData(playersData) {
+  const parsedPlayersData = await playersData.json();
+
+  createAllPlayersObjects(parsedPlayersData);
+}
+
+createAllPlayersObjects = data => {
+  data.players.forEach(
+    player =>
+      new Player({
+        id: player.id,
+        name: player.name,
+        position: player.position
+      })
+  );
+
+  displayList();
+};
+
+displayList = () => {
+  const list = document.querySelector(".players-list");
+
+  Player.getAll().forEach(el => {
+    list.innerHTML += `<li>${el.getName()}</li>`;
+  });
 };
 
 async function getData() {
@@ -110,20 +59,22 @@ async function parseData(data) {
 createPlayer = playerMeta => {
   const player = new Player(playerMeta);
 
-  gatherDataPoints(player);
+  gatherDataPoints(player, "last10");
+  gatherDataPoints(player, "vsOpponent");
+  gatherDataPoints(player, "value");
 };
 
 calculateFanduelPoints = game => {
-  let ffps = 0;
+  let fantasyPoints = 0;
 
-  ffps += game.points;
-  ffps += game.rebounds * 1.2;
-  ffps += game.assists * 1.5;
-  ffps += game.steals * 3;
-  ffps += game.blocks * 3;
-  ffps -= game.turnovers;
+  fantasyPoints += game.points;
+  fantasyPoints += game.rebounds * 1.2;
+  fantasyPoints += game.assists * 1.5;
+  fantasyPoints += game.steals * 3;
+  fantasyPoints += game.blocks * 3;
+  fantasyPoints -= game.turnovers;
 
-  return ffps;
+  return fantasyPoints;
 };
 
 calculateValue = game => {
@@ -179,31 +130,79 @@ parseDate = date => {
   return `${monthWord} ${date.getDate()}, ${date.getFullYear()}`;
 };
 
-gatherDataPoints = player => {
-  const dataPoints = player.getGames().map(el => {
-    return {
-      label: parseDate(new Date(el.date.replace(/-/g, "/"))),
-      y: calculateFanduelPoints(el)
-    };
-  });
+gatherDataPoints = (player, type) => {
+  let dataPoints = null;
+  if (type == "last10") {
+    dataPoints = player.getGames().map(el => {
+      return {
+        label: parseDate(new Date(el.date.replace(/-/g, "/"))),
+        y: calculateFanduelPoints(el)
+      };
+    });
+  } else if (type == "vsOpponent") {
+    dataPoints = player.getGamesAgainst("BOS").map(el => {
+      return {
+        label: parseDate(new Date(el.date.replace(/-/g, "/"))),
+        y: calculateFanduelPoints(el)
+      };
+    });
+  } else {
+    dataPoints = player.getGames().map(el => {
+      return {
+        label: parseDate(new Date(el.date.replace(/-/g, "/"))),
+        y: calculateValue(el)
+      };
+    });
+  }
 
-  populateChart(player, dataPoints);
+  populateChart(player, dataPoints, type);
 };
 
-populateChart = (player, data) => {
-  const chart = new CanvasJS.Chart("chartContainer", {
-    title: {
-      text: `${player.getName()} Past 10 Games`
-    },
-    data: [
-      {
-        type: "line",
-        name: "actual",
-        showInLegend: true,
-        dataPoints: data
-      }
-    ]
-  });
+populateChart = (player, data, type) => {
+  let chart = null;
+  if (type == "last10") {
+    chart = new CanvasJS.Chart("chartContainer", {
+      title: {
+        text: `${player.getName()} Past 10 Games`
+      },
+      data: [
+        {
+          type: "line",
+          name: "actual",
+          showInLegend: true,
+          dataPoints: data
+        }
+      ]
+    });
+  } else if (type == "vsOpponent") {
+    chart = new CanvasJS.Chart("chartContainer1", {
+      title: {
+        text: `${player.getName()} vs Boston Celtics`
+      },
+      data: [
+        {
+          type: "line",
+          name: "actual",
+          showInLegend: true,
+          dataPoints: data
+        }
+      ]
+    });
+  } else {
+    chart = new CanvasJS.Chart("chartContainer2", {
+      title: {
+        text: `${player.getName()} Value`
+      },
+      data: [
+        {
+          type: "line",
+          name: "actual",
+          showInLegend: true,
+          dataPoints: data
+        }
+      ]
+    });
+  }
 
   renderChart(chart);
 };
