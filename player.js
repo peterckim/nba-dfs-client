@@ -12,14 +12,22 @@ class Player {
     Player.all.push(this);
   }
 
+  getID = () => {
+    return this.id;
+  };
+
   /* Getter Method for Player Name */
   getName = () => {
     return this.name;
   };
 
+  getTodaysOpponent = () => {
+    return this.getGames()[0].opponent;
+  };
+
   /* Getter Method for Player Games */
   getGames = () => {
-    return this.games.reverse();
+    return this.games;
   };
 
   /* Static Method to Get ALL Players Instances */

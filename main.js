@@ -1,3 +1,5 @@
+var charts = [];
+
 window.onload = function() {
   /* Begin running the code */
   start();
@@ -6,7 +8,7 @@ window.onload = function() {
 /* Initial Method */
 start = () => {
   /* Handle Data + Render the Charts */
-  getData();
+  renderEmptyCharts();
 
   /* Render Player List */
   renderList();
@@ -50,19 +52,41 @@ displayList = () => {
   const list = document.querySelector(".players-list");
 
   Player.getAll().forEach(el => {
-    list.innerHTML += `<li>${el.getName()}</li>`;
+    list.innerHTML += `<input type="radio" id="${el.getID()}" name="player">
+    <label for="${el.getID()}">${el.getName()}</label><br>`;
+  });
+
+  addRadioEvents();
+};
+
+addRadioEvents = () => {
+  radioButtons = document.querySelectorAll('input[type="radio"]');
+
+  radioButtons.forEach(el => {
+    el.addEventListener("change", function(e) {
+      const target = e.target;
+      const id = target.id;
+
+      getDataByID(id);
+    });
   });
 };
 
-/* Get Player Data */
-async function getData() {
-  const data = await fetch("http://localhost:5000/players/337");
+async function getDataByID(id) {
+  const data = await fetch(`http://localhost:5000/players/${id}`);
 
-  parseData(data);
+  parseDataByID(data);
 }
 
-/* Parse Player Data to JSON */
-async function parseData(data) {
+async function getDataByIDvsOpponent(id, opponent) {
+  const data = await fetch(
+    `http://localhost:5000/players/${id}?opponent=${opponent}`
+  );
+
+  parseDataByID(data);
+}
+
+async function parseDataByID(data) {
   const parsedData = await data.json();
 
   createPlayer(parsedData);
@@ -88,7 +112,7 @@ gatherDataPoints = (player, type) => {
       };
     });
   } else if (type == "vsOpponent") {
-    dataPoints = player.getGamesAgainst("BOS").map(el => {
+    dataPoints = player.getGamesAgainst(player.getTodaysOpponent()).map(el => {
       return {
         label: parseDate(new Date(el.date.replace(/-/g, "/"))),
         y: calculateFanduelPoints(el)
@@ -106,51 +130,87 @@ gatherDataPoints = (player, type) => {
   populateChart(player, dataPoints, type);
 };
 
+renderEmptyCharts = () => {
+  chart = new CanvasJS.Chart("chartContainer", {
+    title: {
+      text: `Past 10 Games`
+    },
+    data: [
+      {
+        type: "line",
+        name: "actual",
+        showInLegend: true
+      }
+    ]
+  });
+  chart1 = new CanvasJS.Chart("chartContainer1", {
+    title: {
+      text: `vs Team`
+    },
+    data: [
+      {
+        type: "line",
+        name: "actual",
+        showInLegend: true
+      }
+    ]
+  });
+  chart2 = new CanvasJS.Chart("chartContainer2", {
+    title: {
+      text: `Value`
+    },
+    data: [
+      {
+        type: "line",
+        name: "actual",
+        showInLegend: true
+      }
+    ]
+  });
+
+  charts = [chart, chart1, chart2];
+
+  renderChart(chart);
+  renderChart(chart1);
+  renderChart(chart2);
+};
+
 /* Create the Charts */
 populateChart = (player, data, type) => {
   let chart = null;
   if (type == "last10") {
-    chart = new CanvasJS.Chart("chartContainer", {
-      title: {
-        text: `${player.getName()} Past 10 Games`
-      },
-      data: [
-        {
-          type: "line",
-          name: "actual",
-          showInLegend: true,
-          dataPoints: data
-        }
-      ]
-    });
+    chart = charts[0];
+    chart.options.title.text = `${player.getName()} Past 10 Games`;
+    chart.options.data = [
+      {
+        type: "line",
+        name: "actual",
+        showInLegend: true,
+        dataPoints: data
+      }
+    ];
   } else if (type == "vsOpponent") {
-    chart = new CanvasJS.Chart("chartContainer1", {
-      title: {
-        text: `${player.getName()} vs Boston Celtics`
-      },
-      data: [
-        {
-          type: "line",
-          name: "actual",
-          showInLegend: true,
-          dataPoints: data
-        }
-      ]
-    });
+    chart = charts[1];
+    chart.options.title.text = `${player.getName()} vs ${player.getTodaysOpponent()}`;
+    chart.options.data = [
+      {
+        type: "line",
+        name: "actual",
+        showInLegend: true,
+        dataPoints: data
+      }
+    ];
   } else {
-    chart = new CanvasJS.Chart("chartContainer2", {
-      title: {
-        text: `${player.getName()} Value`
-      },
-      data: [
-        {
-          type: "line",
-          name: "actual",
-          showInLegend: true,
-          dataPoints: data
-        }
-      ]
-    });
+    chart = charts[2];
+    chart.options.title.text = `${player.getName()} Value`;
+    chart.options.data = [
+      {
+        type: "line",
+        name: "actual",
+        showInLegend: true,
+        dataPoints: data
+      }
+    ];
   }
 
   renderChart(chart);
