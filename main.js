@@ -223,12 +223,6 @@ gatherDataPoints = (player, type) => {
   populateChart(player, dataPoints, type);
 };
 
-calculatePrice = el => {
-  return el.price;
-};
-
-chartUpdateOptions = (chart, text, data) => {};
-
 /* Populate the Charts with Real Data*/
 populateChart = (player, data, type) => {
   const { charts } = myGlobals;
@@ -256,13 +250,6 @@ populateChart = (player, data, type) => {
         showInLegend: true,
         dataPoints: data
       }
-      // {
-      //   type: "line",
-      //   name: "Salary",
-      //   color: "#CC2529",
-      //   showInLegend: true,
-      //   dataPoints: data
-      // }
     ];
   } else {
     chart = charts[2];
@@ -293,6 +280,11 @@ calculateFanduelPoints = game => {
   fantasyPoints -= game.turnovers;
 
   return fantasyPoints;
+};
+
+/* Helper Method to Calculate Price of Player */
+calculatePrice = el => {
+  return el.price;
 };
 
 /* Helper Method to Calculate Value Returned of Player */
