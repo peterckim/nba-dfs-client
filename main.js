@@ -1,27 +1,112 @@
-var charts = [];
+var myGlobals = {
+  charts: [],
+  page: 0,
+  size: 25
+};
+/* 
+    REFACTOR
+*/
 
 window.onload = function() {
   /* Begin running the code */
+  // initialize();
   start();
 };
 
-/* Initial Method */
-start = () => {
-  /* Handle Data + Render the Charts */
-  renderEmptyCharts();
+handleInitialCharts = () => {
+  createAllCharts();
 
-  /* Render Player List */
-  renderList();
+  // charts = [basicChart, againstOpponentChart, salaryChart];
+
+  // charts.forEach(chart => {
+  //   renderChart(chart);
+  // });
 };
 
-/* Initial Method to Render Player List */
-renderList = () => {
-  fetchAllPlayers();
+createAllCharts = () => {
+  createChart("chartContainer");
+  createChart("againstOpponentChartContainer");
+  createChart("salaryChartContainer");
 };
 
-/* Fetch All Players from API */
-async function fetchAllPlayers() {
-  const playersData = await fetch("http://localhost:5000/players");
+createChart = element => {
+  const { charts } = myGlobals;
+  const chart = new CanvasJS.Chart(element, {
+    title: {
+      text: ""
+    },
+    data: [
+      {
+        type: "line",
+        showInLegend: true
+      }
+    ]
+  });
+
+  myGlobals.charts = [...charts, chart];
+
+  renderChart(chart);
+};
+
+renderChart = chart => {
+  chart.render();
+};
+
+// renderInitialCharts = () => {
+//   basicChart = new CanvasJS.Chart("chartContainer", {
+//     title: {
+//       text: `Past 10 Games`
+//     },
+//     data: [
+//       {
+//         type: "line",
+//         name: "actual",
+//         showInLegend: true
+//       }
+//     ]
+//   });
+
+//   againstOpponentChart = new CanvasJS.Chart("againstOpponentChartContainer", {
+//     title: {
+//       text: `vs Team`
+//     },
+//     data: [
+//       {
+//         type: "line",
+//         name: "actual",
+//         showInLegend: true
+//       }
+//     ]
+//   });
+
+//   salaryChart = new CanvasJS.Chart("salaryChartContainer", {
+//     title: {
+//       text: `Salary`
+//     },
+//     data: [
+//       {
+//         type: "line",
+//         name: "actual",
+//         showInLegend: true
+//       }
+//     ]
+//   });
+
+//   charts = [basicChart, againstOpponentChart, salaryChart];
+
+//   charts.forEach(chart => {
+//     renderChart(chart);
+//   });
+// };
+
+handleInitialPlayersList = () => {
+  fetchAllPlayers(0, 25);
+};
+
+async function fetchAllPlayers(page, size) {
+  const playersData = await fetch(
+    `http://localhost:5000/players?page=${page}&size=${size}`
+  );
 
   parseAllPlayerData(playersData);
 }
@@ -30,12 +115,12 @@ async function fetchAllPlayers() {
 async function parseAllPlayerData(playersData) {
   const parsedPlayersData = await playersData.json();
 
-  createAllPlayersObjects(parsedPlayersData);
+  updatePlayerList(parsedPlayersData);
 }
 
 /* Create Player Instances from Fetched Data */
-createAllPlayersObjects = data => {
-  data.players.forEach(
+createAllPlayersObjects = players => {
+  players.forEach(
     player =>
       new Player({
         id: player.id,
@@ -43,17 +128,19 @@ createAllPlayersObjects = data => {
         position: player.position
       })
   );
-
-  displayList();
 };
 
-/* Render List of Players to HTML */
-displayList = () => {
+updatePlayerList = ({ players }) => {
+  createAllPlayersObjects(players);
+  renderList();
+};
+
+renderList = () => {
   const list = document.querySelector(".players-list");
 
-  Player.getAll().forEach(el => {
+  Player.getLastNPlayers(25).forEach(el => {
     list.innerHTML += `<input type="radio" id="${el.getID()}" name="player">
-    <label for="${el.getID()}">${el.getName()}</label><br>`;
+    <label style="line-height: 50px;" for="${el.getID()}">${el.getName()}</label><br>`;
   });
 
   addRadioEvents();
@@ -67,9 +154,38 @@ addRadioEvents = () => {
       const target = e.target;
       const id = target.id;
 
-      getDataByID(id);
+      /* Find the local instance of the player with that id */
+      const savedPlayer = Player.findByID(id);
+
+      /* If games data has been received from the API before, pull from local data, else grab data from API */
+      if (savedPlayer.getGames().length > 0) {
+        gatherDataPoints(savedPlayer, "last10");
+        gatherDataPoints(savedPlayer, "vsOpponent");
+        gatherDataPoints(savedPlayer, "salary");
+      } else {
+        getDataByID(id);
+      }
     });
   });
+};
+
+/* Initial Method */
+start = () => {
+  handleInitialCharts();
+  handleInitialPlayersList();
+
+  // /* Render Player List */
+  // renderList();
+
+  // const list = document.querySelector(".players-list");
+
+  // list.addEventListener("scroll", function(event) {
+  //   console.log(event);
+  //   if (this.scrollTop >= this.scrollHeight - 650) {
+  //     page = page + 1;
+  //     fetchAllPlayers(page, size);
+  //   }
+  // });
 };
 
 async function getDataByID(id) {
@@ -93,90 +209,67 @@ async function parseDataByID(data) {
 }
 
 /* Create Player Instance off Fetched Data */
-createPlayer = playerMeta => {
-  const player = new Player(playerMeta);
+createPlayer = data => {
+  const { id, games } = data;
+  const player = Player.findByID(id);
+
+  player ? player.setGames(games) : (player = new Player(data));
 
   gatherDataPoints(player, "last10");
   gatherDataPoints(player, "vsOpponent");
-  gatherDataPoints(player, "value");
+  gatherDataPoints(player, "salary");
+};
+
+addDataPoints = ({ games, manipulation, color }) => {
+  return games.map(el => {
+    return {
+      label: parseDate(new Date(el.date.replace(/-/g, "/"))),
+      y: manipulation(el),
+      color: color,
+      lineColor: color
+    };
+  });
 };
 
 /* Populate Data Points for Chart */
+/* Refactor */
 gatherDataPoints = (player, type) => {
-  let dataPoints = null;
+  let object = {};
+
   if (type == "last10") {
-    dataPoints = player.getGames().map(el => {
-      return {
-        label: parseDate(new Date(el.date.replace(/-/g, "/"))),
-        y: calculateFanduelPoints(el)
-      };
-    });
+    object = {
+      games: player.getGames(),
+      manipulation: calculateFanduelPoints,
+      color: "#396AB1"
+    };
   } else if (type == "vsOpponent") {
-    dataPoints = player.getGamesAgainst(player.getTodaysOpponent()).map(el => {
-      return {
-        label: parseDate(new Date(el.date.replace(/-/g, "/"))),
-        y: calculateFanduelPoints(el)
-      };
-    });
+    object = {
+      games: player.getGamesAgainst(player.getTodaysOpponent()),
+      manipulation: calculateFanduelPoints,
+      color: "#DA7C30"
+    };
   } else {
-    dataPoints = player.getGames().map(el => {
-      return {
-        label: parseDate(new Date(el.date.replace(/-/g, "/"))),
-        y: calculateValue(el)
-      };
-    });
+    object = {
+      games: player.getGames(),
+      manipulation: calculatePrice,
+      color: "#3E9651"
+    };
   }
+
+  const dataPoints = addDataPoints(object);
 
   populateChart(player, dataPoints, type);
 };
 
-renderEmptyCharts = () => {
-  chart = new CanvasJS.Chart("chartContainer", {
-    title: {
-      text: `Past 10 Games`
-    },
-    data: [
-      {
-        type: "line",
-        name: "actual",
-        showInLegend: true
-      }
-    ]
-  });
-  chart1 = new CanvasJS.Chart("chartContainer1", {
-    title: {
-      text: `vs Team`
-    },
-    data: [
-      {
-        type: "line",
-        name: "actual",
-        showInLegend: true
-      }
-    ]
-  });
-  chart2 = new CanvasJS.Chart("chartContainer2", {
-    title: {
-      text: `Value`
-    },
-    data: [
-      {
-        type: "line",
-        name: "actual",
-        showInLegend: true
-      }
-    ]
-  });
-
-  charts = [chart, chart1, chart2];
-
-  renderChart(chart);
-  renderChart(chart1);
-  renderChart(chart2);
+calculatePrice = el => {
+  return el.price;
 };
 
-/* Create the Charts */
+chartUpdateOptions = (chart, text, data) => {};
+
+/* Populate the Charts with Real Data*/
 populateChart = (player, data, type) => {
+  const { charts } = myGlobals;
   let chart = null;
   if (type == "last10") {
     chart = charts[0];
@@ -184,7 +277,8 @@ populateChart = (player, data, type) => {
     chart.options.data = [
       {
         type: "line",
-        name: "actual",
+        name: "Fantasy Points",
+        color: "#396AB1",
         showInLegend: true,
         dataPoints: data
       }
@@ -195,18 +289,27 @@ populateChart = (player, data, type) => {
     chart.options.data = [
       {
         type: "line",
-        name: "actual",
+        name: "Fantasy Points",
+        color: "#DA7C30",
         showInLegend: true,
         dataPoints: data
       }
+      // {
+      //   type: "line",
+      //   name: "Salary",
+      //   color: "#CC2529",
+      //   showInLegend: true,
+      //   dataPoints: data
+      // }
     ];
   } else {
     chart = charts[2];
-    chart.options.title.text = `${player.getName()} Value`;
+    chart.options.title.text = `${player.getName()} Salary`;
     chart.options.data = [
       {
         type: "line",
-        name: "actual",
+        name: "Salary",
+        color: "#3E9651",
         showInLegend: true,
         dataPoints: data
       }
@@ -214,11 +317,6 @@ populateChart = (player, data, type) => {
   }
 
   renderChart(chart);
-};
-
-/* Render Canvas Chart to HTML */
-renderChart = chart => {
-  chart.render();
 };
 
 /* Helper Method to Calculate Fanduel Points */

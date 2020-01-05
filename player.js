@@ -1,6 +1,7 @@
 /* Player Object */
 class Player {
   /* Array of ALL Players */
+  /* LATER: One Idea to Optimize would be to use a Hash instead of an Array */
   static all = [];
 
   /* Constructor Method */
@@ -8,7 +9,7 @@ class Player {
     this.id = args.id;
     this.name = args.name;
     this.position = args.position;
-    this.games = args.games;
+    this.games = [];
     Player.all.push(this);
   }
 
@@ -22,17 +23,30 @@ class Player {
   };
 
   getTodaysOpponent = () => {
-    return this.getGames()[0].opponent;
+    return this.getGames()[this.getGames().length - 1].opponent;
   };
 
   /* Getter Method for Player Games */
   getGames = () => {
-    return this.games;
+    let gamesArray = [...this.games];
+    gamesArray.reverse();
+    return gamesArray;
+  };
+
+  setGames = games => {
+    this.games = games;
   };
 
   /* Static Method to Get ALL Players Instances */
   static getAll = () => {
     return Player.all;
+  };
+
+  static getLastNPlayers = number => {
+    return Player.getAll().slice(
+      Player.getAll().length - number,
+      Player.getAll().length
+    );
   };
 
   /* Static Method to Get ALL Players with a Certain Position */
@@ -44,8 +58,17 @@ class Player {
 
   /* Getter Method to Retrieve ALL Games Against a Certain Team */
   getGamesAgainst = team => {
-    return this.games.filter(el => {
+    let gamesArray = [...this.games];
+    gamesArray.reverse();
+
+    return gamesArray.filter(el => {
       return el.opponent === team;
+    });
+  };
+
+  static findByID = id => {
+    return Player.getAll().find(function(element) {
+      return element.id == id;
     });
   };
 }
