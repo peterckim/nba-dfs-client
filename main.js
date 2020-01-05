@@ -9,28 +9,46 @@ var myGlobals = {
 
 window.onload = function() {
   /* Begin running the code */
-  // initialize();
   start();
+};
+
+/* Initial Method */
+start = () => {
+  handleInitialCharts();
+  handleInitialPlayersList();
+
+  lazyLoadRestOfPlayersList();
+};
+
+/* Fix this to only run again once data has been retrieved */
+
+/* Fetch more players from api only when user has scrolled down the list */
+lazyLoadRestOfPlayersList = () => {
+  const list = document.querySelector(".players-list");
+
+  list.addEventListener("scroll", function(event) {
+    if (this.scrollTop >= this.scrollHeight - 650) {
+      incrementPageNumber();
+      fetchAllPlayers(myGlobals.page, myGlobals.size);
+    }
+  });
 };
 
 handleInitialCharts = () => {
   createAllCharts();
-
-  // charts = [basicChart, againstOpponentChart, salaryChart];
-
-  // charts.forEach(chart => {
-  //   renderChart(chart);
-  // });
 };
 
+/* Create 3 Charts: 1 for Last 10 Games, 1 for Against Today's Opponent, 1 for Salary */
 createAllCharts = () => {
   createChart("chartContainer");
   createChart("againstOpponentChartContainer");
   createChart("salaryChartContainer");
 };
 
+/* Create the empty charts */
 createChart = element => {
   const { charts } = myGlobals;
+
   const chart = new CanvasJS.Chart(element, {
     title: {
       text: ""
@@ -43,66 +61,27 @@ createChart = element => {
     ]
   });
 
+  /* Save chart objects to global charts */
   myGlobals.charts = [...charts, chart];
 
   renderChart(chart);
 };
 
+/* Render chart */
 renderChart = chart => {
   chart.render();
 };
 
-// renderInitialCharts = () => {
-//   basicChart = new CanvasJS.Chart("chartContainer", {
-//     title: {
-//       text: `Past 10 Games`
-//     },
-//     data: [
-//       {
-//         type: "line",
-//         name: "actual",
-//         showInLegend: true
-//       }
-//     ]
-//   });
-
-//   againstOpponentChart = new CanvasJS.Chart("againstOpponentChartContainer", {
-//     title: {
-//       text: `vs Team`
-//     },
-//     data: [
-//       {
-//         type: "line",
-//         name: "actual",
-//         showInLegend: true
-//       }
-//     ]
-//   });
-
-//   salaryChart = new CanvasJS.Chart("salaryChartContainer", {
-//     title: {
-//       text: `Salary`
-//     },
-//     data: [
-//       {
-//         type: "line",
-//         name: "actual",
-//         showInLegend: true
-//       }
-//     ]
-//   });
-
-//   charts = [basicChart, againstOpponentChart, salaryChart];
-
-//   charts.forEach(chart => {
-//     renderChart(chart);
-//   });
-// };
-
 handleInitialPlayersList = () => {
-  fetchAllPlayers(0, 25);
+  const { page, size } = myGlobals;
+  fetchAllPlayers(page, size);
 };
 
+incrementPageNumber = () => {
+  myGlobals.page = myGlobals.page + 1;
+};
+
+/* async function: fetch players info from api then parse */
 async function fetchAllPlayers(page, size) {
   const playersData = await fetch(
     `http://localhost:5000/players?page=${page}&size=${size}`
@@ -111,7 +90,7 @@ async function fetchAllPlayers(page, size) {
   parseAllPlayerData(playersData);
 }
 
-/* Parse All Player Data to JSON */
+/* async function: parse all player data to JSON then update list */
 async function parseAllPlayerData(playersData) {
   const parsedPlayersData = await playersData.json();
 
@@ -135,6 +114,7 @@ updatePlayerList = ({ players }) => {
   renderList();
 };
 
+/* Render player list to HTML */
 renderList = () => {
   const list = document.querySelector(".players-list");
 
@@ -146,6 +126,7 @@ renderList = () => {
   addRadioEvents();
 };
 
+/* Add eventlistener to player selections */
 addRadioEvents = () => {
   radioButtons = document.querySelectorAll('input[type="radio"]');
 
@@ -167,25 +148,6 @@ addRadioEvents = () => {
       }
     });
   });
-};
-
-/* Initial Method */
-start = () => {
-  handleInitialCharts();
-  handleInitialPlayersList();
-
-  // /* Render Player List */
-  // renderList();
-
-  // const list = document.querySelector(".players-list");
-
-  // list.addEventListener("scroll", function(event) {
-  //   console.log(event);
-  //   if (this.scrollTop >= this.scrollHeight - 650) {
-  //     page = page + 1;
-  //     fetchAllPlayers(page, size);
-  //   }
-  // });
 };
 
 async function getDataByID(id) {
