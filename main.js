@@ -86,15 +86,9 @@ async function fetchAllPlayers(page, size) {
   const playersData = await fetch(
     `http://localhost:5000/players?page=${page}&size=${size}`
   );
+  const parsedData = await playersData.json();
 
-  parseAllPlayerData(playersData);
-}
-
-/* async function: parse all player data to JSON then update list */
-async function parseAllPlayerData(playersData) {
-  const parsedPlayersData = await playersData.json();
-
-  updatePlayerList(parsedPlayersData);
+  updatePlayerList(parsedData);
 }
 
 /* Create Player Instances from Fetched Data */
@@ -152,19 +146,15 @@ addRadioEvents = () => {
 
 async function getDataByID(id) {
   const data = await fetch(`http://localhost:5000/players/${id}`);
+  const parsedData = await data.json();
 
-  parseDataByID(data);
+  createPlayer(parsedData);
 }
 
 async function getDataByIDvsOpponent(id, opponent) {
   const data = await fetch(
     `http://localhost:5000/players/${id}?opponent=${opponent}`
   );
-
-  parseDataByID(data);
-}
-
-async function parseDataByID(data) {
   const parsedData = await data.json();
 
   createPlayer(parsedData);
