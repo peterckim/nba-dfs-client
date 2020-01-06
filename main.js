@@ -20,6 +20,35 @@ start = () => {
   lazyLoadRestOfPlayersList();
 };
 
+/*
+  async function handleInitialPlayersList() {
+    try {
+      const rawData = await fetchAllPlayers(page, size)
+      const data = await rawData.json();
+
+      createAllPlayersObjects(data.players);
+      renderList();
+      addRadioEvents();
+      lazyLoadRestOfPlayersList();
+    } catch (e) {
+      showError(e);
+    }
+  }
+*/
+
+/*
+  async function getPlayerDataByID(id) {
+    try {
+      const rawData = await fetch(`http://localhost:5000/players/${id}`);
+      const data = await rawData.json();
+
+      createPlayer(data);
+    } catch (e) {
+      showError(e);
+    }
+  }
+*/
+
 /* Fix this to only run again once data has been retrieved */
 
 /* Fetch more players from api only when user has scrolled down the list */
@@ -74,7 +103,7 @@ renderChart = chart => {
 
 handleInitialPlayersList = () => {
   const { page, size } = myGlobals;
-  fetchAllPlayers(page, size);
+  fetchAllPlayers(page, size, updatePlayerList);
 };
 
 incrementPageNumber = () => {
@@ -82,13 +111,21 @@ incrementPageNumber = () => {
 };
 
 /* async function: fetch players info from api then parse */
-async function fetchAllPlayers(page, size) {
-  const playersData = await fetch(
-    `http://localhost:5000/players?page=${page}&size=${size}`
-  );
-  const parsedData = await playersData.json();
+async function fetchAllPlayers(page, size, cb) {
+  try {
+    const playersData = await fetch(
+      `http://localhost:5000/players?page=${page}&size=${size}`
+    );
+    const parsedData = await playersData.json();
+  
+    cb(parsedData);
+  } catch (e) {
+    showError(e);
+  }
+}
 
-  updatePlayerList(parsedData);
+showError = (err) => {
+  console.log(err);
 }
 
 /* Create Player Instances from Fetched Data */
@@ -138,26 +175,28 @@ addRadioEvents = () => {
         gatherDataPoints(savedPlayer, "vsOpponent");
         gatherDataPoints(savedPlayer, "salary");
       } else {
-        getDataByID(id);
+        getDataByID(id, createPlayer);
       }
     });
   });
 };
 
-async function getDataByID(id) {
+
+
+async function getDataByID(id, cb) {
   const data = await fetch(`http://localhost:5000/players/${id}`);
   const parsedData = await data.json();
 
-  createPlayer(parsedData);
+  cb(parsedData);
 }
 
-async function getDataByIDvsOpponent(id, opponent) {
+async function getDataByIDvsOpponent(id, opponent, cb) {
   const data = await fetch(
     `http://localhost:5000/players/${id}?opponent=${opponent}`
   );
   const parsedData = await data.json();
 
-  createPlayer(parsedData);
+  cb(parsedData);
 }
 
 /* Create Player Instance off Fetched Data */
