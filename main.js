@@ -4,53 +4,89 @@ var myGlobals = {
   size: 25,
   flag: true
 };
-/* 
-    REFACTOR
-*/
 
 window.onload = function() {
-  /* Begin running the code */
   start();
 };
 
 /* Initial Method */
 start = () => {
   handleInitialCharts();
-  handleInitialPlayersList();
-
-  lazyLoadRestOfPlayersList();
+  handlePlayersList();
 };
 
-/*
-  async function handleInitialPlayersList() {
-    try {
-      const rawData = await fetchAllPlayers(page, size)
-      const data = await rawData.json();
+async function handlePlayersList() {
+  try {
+    const rawData = await fetchAllPlayers(myGlobals.page, myGlobals.size);
+    const data = await rawData.json();
 
-      createAllPlayersObjects(data.players);
-      renderList();
-      addRadioEvents();
-      lazyLoadRestOfPlayersList();
-    } catch (e) {
-      showError(e);
-    }
+    createAllPlayersObjects(data.players);
+    renderList();
+    lazyLoadRestOfPlayersList();
+  } catch (e) {
+    showError(e);
   }
-*/
+}
 
-/*
-  async function getPlayerDataByID(id) {
-    try {
-      const rawData = await fetch(`http://localhost:5000/players/${id}`);
-      const data = await rawData.json();
+/* async function: fetch players info from api then parse */
+fetchAllPlayers = (page, size) => {
+  return fetch(`http://localhost:5000/players?page=${page}&size=${size}`);
+};
 
-      createPlayer(data);
-    } catch (e) {
-      showError(e);
-    }
-  }
-*/
+/* Create Player Instances from Fetched Data */
+createAllPlayersObjects = players => {
+  players.forEach(
+    player =>
+      new Player({
+        id: player.id,
+        name: player.name,
+        position: player.position
+      })
+  );
+};
 
-/* Fix this to only run again once data has been retrieved */
+/* Render player list to HTML */
+renderList = () => {
+  const list = document.querySelector(".players-list");
+
+  Player.getLastNPlayers(myGlobals.size).forEach(el => {
+    list.innerHTML += `<input type="radio" id="${el.getID()}" name="player">
+    <label style="line-height: 50px;" for="${el.getID()}">${el.getName()}</label><br>`;
+  });
+
+  addRadioEvents();
+};
+
+/* Add eventlistener to player selections */
+addRadioEvents = () => {
+  radioButtons = document.querySelectorAll('input[type="radio"]');
+
+  radioButtons.forEach(el => {
+    el.addEventListener("change", async function(e) {
+      const target = e.target;
+      const id = target.id;
+
+      /* Find the local instance of the player with that id */
+      const savedPlayer = Player.findByID(id);
+
+      /* If games data has been received from the API before, pull from local data, else grab data from API */
+      if (savedPlayer.getGames().length > 0) {
+        gatherDataPoints(savedPlayer, "last10");
+        gatherDataPoints(savedPlayer, "vsOpponent");
+        gatherDataPoints(savedPlayer, "salary");
+      } else {
+        try {
+          const playerDataRaw = await getPlayerDataByID(id);
+          const playerData = await playerDataRaw.json();
+
+          createPlayer(playerData);
+        } catch (e) {
+          showError(e);
+        }
+      }
+    });
+  });
+};
 
 /* Fetch more players from api only when user has scrolled down the list */
 lazyLoadRestOfPlayersList = () => {
@@ -58,14 +94,36 @@ lazyLoadRestOfPlayersList = () => {
 
   list.addEventListener("scroll", async function(e) {
     if (this.scrollTop >= this.scrollHeight - 650 && myGlobals.flag) {
-      myGlobals.flag = false;
-      console.log("working");
-      incrementPageNumber();
-      await fetchAllPlayers(myGlobals.page, myGlobals.size, updatePlayerList);
+      try {
+        myGlobals.flag = false;
+        incrementPageNumber();
 
-      myGlobals.flag = true;
+        const rawData = await fetchAllPlayers(myGlobals.page, myGlobals.size);
+        const data = await rawData.json();
+
+        updatePlayerList(data);
+        myGlobals.flag = true;
+      } catch (e) {
+        showError(e);
+      }
     }
   });
+};
+
+getPlayerDataByID = id => {
+  return fetch(`http://localhost:5000/players/${id}`);
+};
+
+/* Create Player Instance off Fetched Data */
+createPlayer = data => {
+  const { id, games } = data;
+  const player = Player.findByID(id);
+
+  player ? player.setGames(games) : (player = new Player(data));
+
+  gatherDataPoints(player, "last10");
+  gatherDataPoints(player, "vsOpponent");
+  gatherDataPoints(player, "salary");
 };
 
 handleInitialCharts = () => {
@@ -106,95 +164,18 @@ renderChart = chart => {
   chart.render();
 };
 
-handleInitialPlayersList = () => {
-  const { page, size } = myGlobals;
-  fetchAllPlayers(page, size, updatePlayerList);
-};
-
 incrementPageNumber = () => {
   myGlobals.page = myGlobals.page + 1;
 };
 
-/* async function: fetch players info from api then parse */
-async function fetchAllPlayers(page, size, cb) {
-  try {
-    const playersData = await fetch(
-      `http://localhost:5000/players?page=${page}&size=${size}`
-    );
-    const parsedData = await playersData.json();
-
-    cb(parsedData);
-  } catch (e) {
-    showError(e);
-  }
-}
-
 showError = err => {
   console.log(err);
-};
-
-/* Create Player Instances from Fetched Data */
-createAllPlayersObjects = players => {
-  players.forEach(
-    player =>
-      new Player({
-        id: player.id,
-        name: player.name,
-        position: player.position
-      })
-  );
 };
 
 updatePlayerList = ({ players }) => {
   createAllPlayersObjects(players);
   renderList();
 };
-
-/* Render player list to HTML */
-renderList = () => {
-  const list = document.querySelector(".players-list");
-
-  Player.getLastNPlayers(25).forEach(el => {
-    list.innerHTML += `<input type="radio" id="${el.getID()}" name="player">
-    <label style="line-height: 50px;" for="${el.getID()}">${el.getName()}</label><br>`;
-  });
-
-  addRadioEvents();
-};
-
-/* Add eventlistener to player selections */
-addRadioEvents = () => {
-  radioButtons = document.querySelectorAll('input[type="radio"]');
-
-  radioButtons.forEach(el => {
-    el.addEventListener("change", function(e) {
-      const target = e.target;
-      const id = target.id;
-
-      /* Find the local instance of the player with that id */
-      const savedPlayer = Player.findByID(id);
-
-      /* If games data has been received from the API before, pull from local data, else grab data from API */
-      if (savedPlayer.getGames().length > 0) {
-        gatherDataPoints(savedPlayer, "last10");
-        gatherDataPoints(savedPlayer, "vsOpponent");
-        gatherDataPoints(savedPlayer, "salary");
-
-        console.log(savedPlayer.getGames());
-      } else {
-        getDataByID(id, createPlayer);
-      }
-    });
-  });
-};
-
-async function getDataByID(id, cb) {
-  const data = await fetch(`http://localhost:5000/players/${id}`);
-  const parsedData = await data.json();
-
-  console.log(parsedData);
-  cb(parsedData);
-}
 
 async function getDataByIDvsOpponent(id, opponent, cb) {
   const data = await fetch(
@@ -204,18 +185,6 @@ async function getDataByIDvsOpponent(id, opponent, cb) {
 
   cb(parsedData);
 }
-
-/* Create Player Instance off Fetched Data */
-createPlayer = data => {
-  const { id, games } = data;
-  const player = Player.findByID(id);
-
-  player ? player.setGames(games) : (player = new Player(data));
-
-  gatherDataPoints(player, "last10");
-  gatherDataPoints(player, "vsOpponent");
-  gatherDataPoints(player, "salary");
-};
 
 addDataPoints = ({ games, manipulation, color }) => {
   return games.map(el => {
@@ -228,29 +197,37 @@ addDataPoints = ({ games, manipulation, color }) => {
   });
 };
 
+populateDataPointsMeta = (games, manipulation, color) => {
+  return {
+    games,
+    manipulation,
+    color
+  };
+};
+
 /* Populate Data Points for Chart */
 /* Refactor */
 gatherDataPoints = (player, type) => {
   let object = {};
 
   if (type == "last10") {
-    object = {
-      games: player.getGames(),
-      manipulation: calculateFanduelPoints,
-      color: "#396AB1"
-    };
+    object = populateDataPointsMeta(
+      player.getGames(),
+      calculateFanduelPoints,
+      "#396AB1"
+    );
   } else if (type == "vsOpponent") {
-    object = {
-      games: player.getGamesAgainst(player.getTodaysOpponent()),
-      manipulation: calculateFanduelPoints,
-      color: "#DA7C30"
-    };
+    object = populateDataPointsMeta(
+      player.getGamesAgainst(player.getTodaysOpponent()),
+      calculateFanduelPoints,
+      "#DA7C30"
+    );
   } else {
-    object = {
-      games: player.getGames(),
-      manipulation: calculatePrice,
-      color: "#3E9651"
-    };
+    object = populateDataPointsMeta(
+      player.getGames(),
+      calculatePrice,
+      "#3E9651"
+    );
   }
 
   const dataPoints = addDataPoints(object);
