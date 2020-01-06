@@ -1,7 +1,8 @@
 var myGlobals = {
   charts: [],
   page: 0,
-  size: 25
+  size: 25,
+  flag: true
 };
 /* 
     REFACTOR
@@ -55,10 +56,14 @@ start = () => {
 lazyLoadRestOfPlayersList = () => {
   const list = document.querySelector(".players-list");
 
-  list.addEventListener("scroll", function(event) {
-    if (this.scrollTop >= this.scrollHeight - 650) {
+  list.addEventListener("scroll", async function(e) {
+    if (this.scrollTop >= this.scrollHeight - 650 && myGlobals.flag) {
+      myGlobals.flag = false;
+      console.log("working");
       incrementPageNumber();
-      fetchAllPlayers(myGlobals.page, myGlobals.size);
+      await fetchAllPlayers(myGlobals.page, myGlobals.size, updatePlayerList);
+
+      myGlobals.flag = true;
     }
   });
 };
@@ -117,16 +122,16 @@ async function fetchAllPlayers(page, size, cb) {
       `http://localhost:5000/players?page=${page}&size=${size}`
     );
     const parsedData = await playersData.json();
-  
+
     cb(parsedData);
   } catch (e) {
     showError(e);
   }
 }
 
-showError = (err) => {
+showError = err => {
   console.log(err);
-}
+};
 
 /* Create Player Instances from Fetched Data */
 createAllPlayersObjects = players => {
@@ -180,8 +185,6 @@ addRadioEvents = () => {
     });
   });
 };
-
-
 
 async function getDataByID(id, cb) {
   const data = await fetch(`http://localhost:5000/players/${id}`);
