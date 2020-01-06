@@ -179,6 +179,8 @@ addRadioEvents = () => {
         gatherDataPoints(savedPlayer, "last10");
         gatherDataPoints(savedPlayer, "vsOpponent");
         gatherDataPoints(savedPlayer, "salary");
+
+        console.log(savedPlayer.getGames());
       } else {
         getDataByID(id, createPlayer);
       }
@@ -190,6 +192,7 @@ async function getDataByID(id, cb) {
   const data = await fetch(`http://localhost:5000/players/${id}`);
   const parsedData = await data.json();
 
+  console.log(parsedData);
   cb(parsedData);
 }
 
