@@ -30,7 +30,9 @@ async function handlePlayersList() {
 
 /* async function: fetch players info from api then parse */
 fetchAllPlayers = (page, size) => {
-  return fetch(`http://localhost:5000/players?page=${page}&size=${size}`);
+  return fetch(
+    `https://afternoon-temple-74443.herokuapp.com/players?page=${page}&size=${size}`
+  );
 };
 
 /* Create Player Instances from Fetched Data */
@@ -111,7 +113,7 @@ lazyLoadRestOfPlayersList = () => {
 };
 
 getPlayerDataByID = id => {
-  return fetch(`http://localhost:5000/players/${id}`);
+  return fetch(`https://afternoon-temple-74443.herokuapp.com/players/${id}`);
 };
 
 /* Create Player Instance off Fetched Data */
@@ -179,7 +181,7 @@ updatePlayerList = ({ players }) => {
 
 async function getDataByIDvsOpponent(id, opponent, cb) {
   const data = await fetch(
-    `http://localhost:5000/players/${id}?opponent=${opponent}`
+    `https://afternoon-temple-74443.herokuapp.com/players/${id}?opponent=${opponent}`
   );
   const parsedData = await data.json();
 
